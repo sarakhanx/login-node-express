@@ -1,0 +1,4 @@
+middleware directory นี้ ณ ปัจุบันทำไว้สำหรับเป็นฟังค์ชั่นตัวกลางเอาไว้ติดต่อระหว่าง หน้าบ้าน - database
+โดยใน validationSignUp มี 2 function 
+1.)checkDuplicateUser มีหน้าที่ เช็คการซ้ำกันของusername และ email
+2.) checkRoleExisted มีหน้าที่ ตรวจสอบว่าใน req.body มี role มาไหม ถ้ามีก็จะตรวจสอบว่ามี roles ที่ส่งมาหรือป่าว ถ้าไม่มีก็ให้ส่ง 400 bad request กลับไปพร้อมข้อความ

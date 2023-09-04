@@ -1,0 +1,78 @@
+const jwt = require('jsonwebtoken');
+const config = require('../configs/auth.config');
+const db =require('../models');
+const User = db.user;
+const Role = db.role;
+
+
+validationToken = (req,res,next)=>{
+    let token = req.session.token;
+
+    if(!token) {
+        return res.status(403).send({message:'no token handler'})
+    }
+    jwt.verify(token,config.secret,(err , decoded)=>{
+        if(err){
+            return res.status(401).send({message:'unauthorized !'});
+        }
+        req.userId = decoded.id;
+        next();
+    })
+};
+
+isAdmin = (req,res,next) => {
+    User.findById(req.userId).exec((err , user)=>{
+        if(err) {
+            res.status(500).send({message:'unknow error occured ',err})
+            return ;
+        }
+        Role.find({
+            _id: {$in:user.roles}
+        },(err , roles)=>{
+            if(err){res.status(500).send({message:'unknow error ocuured ', err});
+            return ;
+        }
+        for (let i=0; i<roles.lengt; i++) {
+            if(roles[i].name === 'admin'){
+                next();
+                return;
+            }
+        }
+        res.status(403).send({message:'require admin permission'});
+        return ;
+    }
+        )
+    })
+};
+
+isModerator =(req,res,next)=>{
+    User.findById(req.userId).exec((err , user)=>{
+        if(err){
+            res.status(500).send({message:'an error occured ',err})
+            return ;
+        }
+        Role.find({
+            _id:{$in: user.roles}
+        },(err , roles)=>{
+            if(err){
+                res.status(500).send({message:'an unknow error occured ', err});
+                return ;
+            }
+            for (i = 0; i<roles.length; i++) {
+                if(roles[i].name === 'moderator'){
+                    next();
+                    return ;
+                }
+            }
+            res.status(403).send({message:'require admin permission'});
+            return;
+        })
+    })
+};
+
+const authJwt = {
+    validationToken,
+    isAdmin,
+    isModerator,
+};
+module.exports = authJwt;

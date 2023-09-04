@@ -1,0 +1,140 @@
+// exports.docsblogcreate = async (req, res) => {
+//     const { docsTitle, docsContent, creator, slug } = req.body;
+//     try {
+//         const docsblog = await DocsBlogs.create({ docsTitle, docsContent, creator, slug });
+
+//         // Placed inside the switch-case block
+//         return res.json(err);
+
+//         switch (true) {
+//             case !slug:
+//                 console.error(err);
+//                 return res.status(400).json({ error: 'an unknown error occurred while creating DOCS' });
+//             case !docsTitle:
+//                 return res.status(400).send({ message: 'empty title fill', err });
+//             case !docsContent:
+//                 return res.status(400).send({ message: 'empty content fill', err });
+//             default:
+//                 console.error(err);
+//                 res.status(500).json({ error: 'an unknown error occurred while creating DOCS' });
+//                 break;
+//         }
+//     } catch (err) {
+//         // ...
+//     }
+// }
+
+const Blogs = require("../models/blogs")
+const slugify = require("slugify")
+const { v4: uuidv4 } = require('uuid');
+
+
+exports.create=(req,res)=>{
+    const {title,content,author} = req.body
+    let slug = slugify(title)
+    // validate = ตรวจสอบความถุกต้อง
+    if(!slug)slug=uuidv4();
+    
+    switch(true){
+        case !title:
+            return res.status(400).json({error:"Empty title fill"})
+            break;
+        case !content:
+            return res.status(400).json({error:"empty content fill"})
+            break;
+    }
+Blogs.create({title,content,author,slug},(err,blog)=>{
+    if(err){
+        res.status(400).json({error:"You try to use the same title you have use before"})
+    }
+    res.json(blog)
+})
+} 
+exports.shelter=(req,res)=>{
+    Blogs.find({}).exec((err,shelterDetail)=>{
+        res.json(shelterDetail)
+    })
+}
+// Categories maker
+exports.singleBlog=(req,res)=>{
+    const {slug} = req.params
+    Blogs.findOne({slug}).exec((err,blog)=>{
+        res.json(blog)
+    })
+}
+
+exports.remove=(req,res)=>{
+    const {slug} = req.params
+    Blogs.findOneAndRemove({slug}).exec((err,blog)=>{
+        if(err) console.log(err)
+        res.json({
+            message:"Deleted !!"
+        })
+    })
+}
+
+exports.update=(req,res)=>{
+    const {slug} = req.params
+    const {title,content,author} = req.body
+    Blogs.findOneAndUpdate({slug},{title,content,author},{new:true}).exec((err,blog)=>{
+         if(err) console.log(err)
+         res.json(blog)
+    })
+}
+------------
+const express = require("express")
+const router = express.Router()
+const{create,shelter,singleBlog,remove,update} = require('../controllers/blogController')
+const {requireLogin} = require("../controllers/authController")
+
+router.post('/create',requireLogin,create)
+router.get('/shelter',shelter)
+router.get('/blog/:slug',singleBlog)
+router.delete('/blog/:slug',requireLogin,remove)
+router.put(`/blog/:slug`,requireLogin,update)
+
+module.exports=router
+------------
+const jwt = require("jsonwebtoken")
+const { expressjwt} = require("express-jwt");
+
+
+exports.login=(req,res)=>{
+
+    const {username,password} = req.body
+    if(password===process.env.PASSWORD){
+        const token = jwt.sign({username},process.env.JWT_SECRET,{expiresIn:'1d'})
+        return res.json({token,username})
+    }else{
+          return res.status(400).json({error:"INCORRECT PASSWORD"})
+    }
+}
+exports.requireLogin= expressjwt({
+    secret : process.env.JWT_SECRET,
+    algorithms :["HS256"],
+    userProperty :"auth"
+})
+
+//ออกแบบโครงสร้างการเก็บข้อมูล
+const mongoose =require("mongoose")
+
+const blogSchema =mongoose.Schema({
+    title:{
+        type:String,
+        required:true
+    },
+    content:{
+        type:{},
+        required:true
+    },
+    author:{
+        type:String,
+        default:"Admin"
+    },
+    slug:{
+        type:String,
+        lowercase:true,
+        unique:true
+    }
+},{timestamps:true})
+module.exports = mongoose.model("Blogs",blogSchema)

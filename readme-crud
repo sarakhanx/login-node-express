@@ -1,0 +1,116 @@
+เริ่มต้นทำ crud อันแรกใส่ โปรเจ็คกันเล้ย
+ใน CRUD นี้ตั้งใจทำเอาไว้เพื่อ note เรื่องต่างๆ ที่ศึกษามา แล้วจะเอามาสรน้าง blog ลงในนี้
+
+# 1.) เริ่มจากสร้าง models ชื่อว่า DocsBlogs
+const mongoose = require('mongoose')
+
+const docsBlogs = mongoose.Schema({
+    docsTitle : {
+        type : String,
+        require : true,    
+    },
+    docsContent : {
+        type : {},
+        require : true,
+    },
+    creator : {
+        type : String,
+        require : true
+    },
+    slug : {
+        type : String,
+        lowercase : true,
+        unique : true,
+    }
+},
+    {timestamps:true})
+module.exports = mongoose.model("DocsBlogs", docsBlogs)
+
+# 2.) เราไปเริ่มสร้าง controller กันก่อน จะได้ลอง auth ด้วย
+    เริ่มจากสร้างไฟล์ 
+./app/controllers/docsblog.controller.js
+------
+const DocsBlogs = require('../models/docs-blog/docsblogs.model')
+const db =require('../models');
+const User = db.user;
+const slugify = require("slugify")
+const { v4: uuidv4 } = require('uuid');
+
+exports.docsblogcreate = async (req , res ) => {
+    const {docsTitle , docsContent } = req.body
+    let slug = slugify(docsTitle);
+    if (!slug) slug = uuidv4
+    try {
+        //? validation สำหรับ create blog นี้
+        switch(true){
+            case !docsTitle:
+                return res.status(400).json({error:"Empty title fill"})
+                break;
+            case !docsContent:
+                return res.status(400).json({error:"empty content fill"})
+                break;
+        }
+
+        //? เอามาเช็ค User
+        const userId = req.userId;
+        const user = await User.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        //? เอามาไว้สร้าง creator === username ของคนที่ loged in
+        const creator = user.username;
+
+        //? ทั้งหมดผ่านแล้ว ให้สร้าง blog 
+        const docsblog = await DocsBlogs.create({docsTitle,docsContent,creator,slug})
+        res.status(200).json(docsblog)
+    } catch (error) {
+        res.status(500).send(error)
+    }
+}
+
+# 3.) ขั้นตอนง่ายๆ ของเราในการ execute ในส่วนของ fetch all data , singleblog ใส่ code ตามนี้
+exports.allDocsblogs =async (req , res)=>{
+    try {
+        const alldocsblog = await DocsBlogs.find()
+        res.status(200).json(alldocsblog);
+    } catch (err) {
+        res.status(500).json(err)
+        
+    }
+    
+}
+
+
+exports.singleDocsblogs = async (req , res , next ) =>{
+    const {slug} = req.params
+    try {
+        const singledocsblogs = await DocsBlogs.findOne({slug})
+        if(!singledocsblogs){
+           return res.status(404).json({message : 'ERROR !! NOT FOUND CONTENT'})
+        }
+        next()
+        res.json(singledocsblogs);
+    
+    } catch (err) {
+        res.status(400).send({message :'an error ocurred in backend'})
+    }
+}
+
+#พักก่อน อยากลืมหัวข้อ routes
+const controller = require('../controllers/docsblog.controller')
+const { authJwt} = require('../middlewares')
+
+module.exports = function(app){
+    app.use(function(req , res , next){
+        res.header(
+            "Access-Control-Allow-Headers",
+            "Origin , Content-Type , Accept"
+        )
+        next();
+    });
+    app.post('/api/docsblog/blogcrerate',[authJwt.validationToken],controller.docsblogcreate)
+    app.get('/api/docsblog/alldocs',controller.allDocsblogs)
+    app.get('/api/docsblog/alldocs/:slug' , controller.singleDocsblogs)
+}
